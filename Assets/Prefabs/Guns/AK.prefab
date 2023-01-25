@@ -260,6 +260,8 @@ MonoBehaviour:
   scopePosition: {x: 0, y: -0.2, z: 0.1}
   usualRotation: {x: 359.67, y: 359.86002, z: 0}
   scopeRotation: {x: 359.67, y: 359.86002, z: 0}
+  runPosOffset: {x: -0.05, y: -0.05, z: 0.1}
+  runRotOffset: {x: 0, y: -70, z: 0}
   animatedPart: {fileID: 8132826044991633967}
   magazinePrefab: {fileID: 563314761766971168, guid: 295b56b6906560441b555a8999112c72, type: 3}
   curMagazine: {fileID: 8130143968601985285}

@@ -151,8 +151,13 @@ public class PoseAnimator : MonoBehaviour
     Vector3 leftHandDesiredPos;
     public void Update()
     {
+
+
+
         if (!reloading)
         {
+            var gun = PlayerController.main.GrabbedGun;
+
             float xAir = Mathf.Clamp( 0.06f * PlayerController.main.airTime, 0, 0.14f);
             float scopedMulti = PlayerController.main.gunState == GunGrabState.Scoped ? 0.5f : 1f;
 
@@ -184,8 +189,8 @@ public class PoseAnimator : MonoBehaviour
                 */
 
                 //old 2 hand
-                desiredPos = new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + -0.05f, -0.05f + Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0.1f);
-                desiredRot = Quaternion.Euler(0, -70 + Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, 0);
+                desiredPos = gun.runPosOffset + new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti, Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0);
+                desiredRot = Quaternion.Euler(gun.runRotOffset.x, gun.runRotOffset.y + Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, gun.runRotOffset.z);
             }
             //else
             //{

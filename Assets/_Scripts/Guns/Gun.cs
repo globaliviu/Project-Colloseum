@@ -16,10 +16,14 @@ public class Gun : GrabbableItem
 
     public GameObject muzzleFX;
     public GameObject decalFX;
+    [Header("Animation parameters")]
     public Vector3 usualPosition;
     public Vector3 scopePosition;
     public Vector3 usualRotation;
     public Vector3 scopeRotation;
+
+    public Vector3 runPosOffset;
+    public Vector3 runRotOffset;
     public Transform animatedPart;
 
 
