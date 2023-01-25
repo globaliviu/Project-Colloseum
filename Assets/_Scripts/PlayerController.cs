@@ -13,18 +13,38 @@ public class PlayerController : MonoBehaviour
     [Header("Mouse Control Vars")]
     public float mouseSensitivity = 1f;
     public float mouseLimitsY = 170f;
+    [Header("Accuracy")]
+    public float startAccuracy = 1f;
+    public float Accuracy {
+        get { return startAccuracy * accuracyMultiplier;  }
+    }
+    public float accuracyMultiplier = 1f;
+    float desiredAccuracyMultiplier;
+
+    public float idleAccuracy;
+    public float jumpAccuracy;
+    public float walkAccuracy;
+    public float runAccuraccy;
+    public float scopedAccuracyMulti;
 
     [Header("Control Vars")]
     public float moveSpeed = 5;
-    public float runSpeed = 10;
+    public float runSpeed = 2f;
     public float scopedSpeedMultiplier = 0.5f;
-
+    public float jumpForce = 20f;
+    public bool isSprinting;
+    public bool jump;
+    public bool isGrounded;
+    public float airTime;
     [Header("Hands")]
     public Hand leftHand;
     public Hand rightHand;
 
     [Header("Grabbing")]
     public GrabbableItem grabbedItem;
+
+
+    public List<GrabbableItem> guns = new List<GrabbableItem>();
 
     public Gun GrabbedGun
     { 
@@ -65,21 +85,31 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         LockMouse(true);
-        GrabItem(grabbedItem);
+
+        foreach (var g in guns)
+        {
+            g.gameObject.SetActive(false);
+        }
+        SwitchGun();
     }
 
     private void Update()
     {
+        UpdateAccuracy();
         if (Input.GetMouseButton(0))
         {
             Shoot();
+            isSprinting = false;
         }
         if (Input.GetMouseButtonDown(1))
         {
+            if (isSprinting)
+                isSprinting = false;
             ChangeScopeState();
         }
         if (Input.GetKeyDown(KeyCode.R))
         {
+            if (isSprinting) isSprinting = false;
             Reload();
         }
         if (Input.GetKeyDown(KeyCode.T))
@@ -89,16 +119,84 @@ public class PlayerController : MonoBehaviour
             else
                 Time.timeScale = 1f;
         }
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            if (!isSprinting && PoseAnimator.main.reloading) return;
+            if (!isSprinting && Input.GetMouseButton(0)) return;
+            if (!isGrounded) return;
+            isSprinting = !isSprinting;
+
+
+            if (isSprinting)
+            {
+                if (gunState == GunGrabState.Scoped)
+                {
+                    ChangeScopeState();
+                }
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (charController.isGrounded)
+            {
+                upForce = Vector3.zero;
+                jump = true;
+            }
+                
+        }
+
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            SwitchGun();
+        }
 
         HandleMovevement();
         HandleMouse();
 
        // GrabItem(grabbedItem);
     }
+    
+    public void UpdateAccuracy()
+    {
+        if (PoseAnimator.main.playerPose == PlayerPose.Idle)
+            desiredAccuracyMultiplier = idleAccuracy;
+        if (PoseAnimator.main.playerPose == PlayerPose.Run)
+            desiredAccuracyMultiplier = runAccuraccy;
+        if (PoseAnimator.main.playerPose == PlayerPose.Walk)
+            desiredAccuracyMultiplier = walkAccuracy;
+        if (!isGrounded)
+            desiredAccuracyMultiplier *= jumpAccuracy;
+        if (gunState == GunGrabState.Scoped)
+            desiredAccuracyMultiplier *= scopedAccuracyMulti;
+
+
+
+        accuracyMultiplier = Mathf.Lerp(accuracyMultiplier, desiredAccuracyMultiplier, 10f * Time.deltaTime);
+    }
 
     void Reload()
     {
         PoseAnimator.main.Reload(GrabbedGun);
+    }
+    void SwitchGun()
+    {
+        var i = grabbedItem == null ? 0 : guns.IndexOf(grabbedItem);
+
+        if (i < guns.Count - 1)
+            i++;
+        else
+            i = 0;
+
+        if (grabbedItem == null)
+            i = 0;
+
+
+        if(grabbedItem != null)
+            grabbedItem.gameObject.SetActive(false);
+
+        GrabItem(guns[i]);
+
+        grabbedItem.gameObject.SetActive(true);
     }
 
     public void ChangeScopeState()
@@ -111,9 +209,15 @@ public class PlayerController : MonoBehaviour
                 gunState = GunGrabState.Normal;
 
             if (gunState == GunGrabState.Normal)
+            {
                 WeaponProceduralAnimator.main.weaponInitLocation = GrabbedGun.usualPosition;
+                WeaponProceduralAnimator.main.weaponInitOrientation = Quaternion.Euler(GrabbedGun.usualRotation);
+            }
             else
+            {
                 WeaponProceduralAnimator.main.weaponInitLocation = GrabbedGun.scopePosition;
+                WeaponProceduralAnimator.main.weaponInitOrientation = Quaternion.Euler(GrabbedGun.scopeRotation);
+            }
 
             Crosshair.main.TurnOn(gunState == GunGrabState.Normal);
         }
@@ -127,21 +231,68 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    Vector3 moveVector;
+    Vector3 upForce;
     public void HandleMovevement()
     {
+        isGrounded = charController.isGrounded;
         var gravity = Time.deltaTime * Physics.gravity;
-        var forwardVector = Input.GetAxisRaw("Vertical") * gameCamera.transform.forward;
-        var horizontalVector = Input.GetAxisRaw("Horizontal") * gameCamera.transform.right;
+        var camForward = gameCamera.transform.forward;
+        camForward.y = 0;
+        camForward = camForward.normalized;
+
+        var camRight = gameCamera.transform.right;
+        camRight.y = 0;
+        camRight = camRight.normalized;
+
+        var forwardVector = Input.GetAxisRaw("Vertical") * camForward;
+        var horizontalVector = Input.GetAxisRaw("Horizontal") * camRight;
         float scopedMulti = gunState == GunGrabState.Scoped ? scopedSpeedMultiplier : 1f;
-        var moveVector = gravity + (forwardVector + horizontalVector).normalized * Time.deltaTime * moveSpeed * scopedMulti;
 
+        float sprintMulti = isSprinting ? runSpeed : 1f;
 
-        if ((forwardVector + horizontalVector).magnitude < 0.01f)
-            PoseAnimator.main.playerPose = PlayerPose.Idle;
+        if(isGrounded)
+            moveVector = Vector3.Lerp(moveVector, (forwardVector + horizontalVector).normalized * Time.deltaTime * moveSpeed * scopedMulti * sprintMulti, 50f * Time.deltaTime);
         else
-            PoseAnimator.main.playerPose = PlayerPose.Walk;
+            moveVector = Vector3.Lerp(moveVector, (forwardVector + horizontalVector).normalized * Time.deltaTime * moveSpeed * scopedMulti * sprintMulti, 1f * Time.deltaTime);
 
-        charController.Move(moveVector);
+
+        if (jump)
+        {
+            upForce += Vector3.up * jumpForce;
+            jump = false;
+        }
+
+        if (!isGrounded)
+            upForce += Time.deltaTime * Physics.gravity * 2f * (1f + airTime);// * (1f + airTime);
+        //else
+        //    jumpForce = Vector3.zero;
+
+        if (isGrounded)
+        {
+            
+            airTime = 0;
+        }
+        else
+        {
+            airTime += Time.deltaTime;
+        }
+
+        if ((Mathf.Abs(moveVector.x) + Mathf.Abs(moveVector.z)) > 0.001f)
+        {
+            if (isSprinting)
+                PoseAnimator.main.SwitchPose(PlayerPose.Run);
+            else
+                PoseAnimator.main.SwitchPose(PlayerPose.Walk);
+            
+        }
+        else
+        {
+            PoseAnimator.main.SwitchPose(PlayerPose.Idle);
+            isSprinting = false;
+        }
+
+        charController.Move(moveVector + gravity + upForce * Time.deltaTime);
 
         var directionImpulse = Input.GetAxisRaw("Horizontal") * Vector3.right + Input.GetAxisRaw("Vertical") * Vector3.forward * scopedSpeedMultiplier;
         WeaponProceduralAnimator.main.DirectionImpulse(directionImpulse * 0.3f);

@@ -11,7 +11,7 @@ public class Hand : MonoBehaviour
     public Transform hint;
     public List<Transform> bones = new List<Transform>();
 
-    HandPoseReference reference;
+    public HandPoseReference reference;
     private void Awake()
     {
         InitBones();
@@ -19,6 +19,7 @@ public class Hand : MonoBehaviour
 
     public void Grab(HandPoseReference _poseRef)
     {
+        reference = _poseRef;
         handTarget.transform.parent = _poseRef.transform.parent;
 
         handTarget.localPosition = _poseRef.transform.localPosition;
@@ -35,6 +36,7 @@ public class Hand : MonoBehaviour
 
     IEnumerator IGrab(HandPoseReference _poseRef, float _duration)
     {
+        reference = _poseRef;
         handTarget.transform.parent = _poseRef.transform.parent;
 
         var p = handTarget.localPosition;

@@ -36,7 +36,7 @@ public class RecoilController : MonoBehaviour
         if (recoilTimer > 1f)
             recoilTimer = 1f;
 
-        Crosshair.main.ApplyScale((recoilTimer * recoilForce * 0.5f + 1f));
+        Crosshair.main.ApplyScale((recoilTimer * recoilForce * 0.5f + PlayerController.main.Accuracy));
 
         comingBackForce = recoilCurve.Evaluate(1f - recoilTimer) * comingToForce;
 
@@ -47,6 +47,16 @@ public class RecoilController : MonoBehaviour
     public void OnEquip()
     {
         recoilTransform = PlayerController.main.recoilControl;
+        if (PlayerController.main.gunState == GunGrabState.Normal)
+        {
+            WeaponProceduralAnimator.main.weaponInitLocation = gun.usualPosition;
+            WeaponProceduralAnimator.main.weaponInitOrientation = Quaternion.Euler(gun.usualRotation);
+        }
+        else
+        {
+            WeaponProceduralAnimator.main.weaponInitLocation = gun.scopePosition;
+            WeaponProceduralAnimator.main.weaponInitOrientation = Quaternion.Euler(gun.scopeRotation);
+        }
     }
     
     public void ApplyRecoil()

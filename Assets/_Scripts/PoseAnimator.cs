@@ -25,8 +25,19 @@ public class PoseAnimator : MonoBehaviour
     public float walkXoffset;
     public float walkXFrequency;
 
+    [Header("Run Pose")]
+    public float runFrequency;
+    public float runYoffset;
+    public float runRotYOffset;
+    public float runRotFrequency;
+    public float runXoffset;
+    public float runXFrequency;
+    public HandPoseReference leftHandRunRef;
+
     public static PoseAnimator main;
 
+    [Header("Configs")]
+    public List<PlayerPoseConfig> configs = new List<PlayerPoseConfig>();
     
     Hand leftHand;
     Hand rightHand;
@@ -62,8 +73,9 @@ public class PoseAnimator : MonoBehaviour
 
         var newMag = Instantiate(gun.magazinePrefab).GetComponentInChildren<HandPoseReference>();
         newMag.transform.parent.parent = magParent;
+        newMag.transform.localScale = Vector3.one;
         newMag.transform.parent.localRotation = magRot;
-        newMag.transform.parent.localPosition = magPos -  new Vector3(0.1f, 0.15f, 0);
+        newMag.transform.parent.localPosition = magPos -  new Vector3(0, 0.35f, 0);
         
         float d1 = 0.2f;
         leftHand.Grab(newMag, d1);
@@ -136,35 +148,75 @@ public class PoseAnimator : MonoBehaviour
         Destroy(_mag);
     }
 
-
+    Vector3 leftHandDesiredPos;
     public void Update()
     {
         if (!reloading)
         {
+            float xAir = Mathf.Clamp( 0.06f * PlayerController.main.airTime, 0, 0.14f);
             float scopedMulti = PlayerController.main.gunState == GunGrabState.Scoped ? 0.5f : 1f;
 
             if (playerPose == PlayerPose.Idle)
             {
-                desiredPos = new Vector3(0, Mathf.Sin(Time.time * idleFrequency) * idleYoffset * scopedMulti, 0);
+                desiredPos = new Vector3(0, Mathf.Sin(Time.time * idleFrequency) * idleYoffset * scopedMulti + xAir * scopedMulti, 0);
                 desiredRot = Quaternion.identity;
             }
             if (playerPose == PlayerPose.Walk)
             {
-                desiredPos = new Vector3(Mathf.Sin(Time.time * walkXFrequency) * walkXoffset * scopedMulti, Mathf.Sin(Time.time * walkFrequency) * walkYoffset * scopedMulti, 0);
+                desiredPos = new Vector3(Mathf.Sin(Time.time * walkXFrequency) * walkXoffset * scopedMulti, Mathf.Sin(Time.time * walkFrequency) * walkYoffset * scopedMulti + xAir * scopedMulti, 0);
                 desiredRot = Quaternion.Euler(0, Mathf.Sin(Time.time * walkRotFrequency * scopedMulti) * walkRotYOffset * scopedMulti, 0);
 
             }
             if (playerPose == PlayerPose.Run)
             {
-                desiredPos = new Vector3(Mathf.Sin(Time.time * walkFrequency) * walkYoffset * scopedMulti, Mathf.Sin(Time.time * walkFrequency) * walkYoffset * scopedMulti, 0);
-                desiredRot = Quaternion.Euler(0, -70 + Mathf.Sin(Time.time * walkRotFrequency * scopedMulti) * walkRotYOffset * scopedMulti, 0);
+                /*
+                if (leftHand.handTarget.parent != leftHandRunRef.transform.parent)
+                {
+                    leftHand.Grab(leftHandRunRef, 0.3f);
+                    leftHandDesiredPos = leftHandRunRef.transform.localPosition;
+                }
+                //new 1 hand
+                leftHand.handTarget.parent = PlayerController.main.playerRig;
+                leftHandDesiredPos = new Vector3(leftHandRunRef.transform.localPosition.x, leftHandRunRef.transform.localPosition.y + Mathf.Sin(Time.time * runFrequency / 2f) * 0.1f + xAir * 10f, leftHandRunRef.transform.localPosition.z);
+
+                desiredPos = new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + 0.15f, -0.05f + Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0.1f);
+                desiredRot = Quaternion.Euler(-70, Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, 0);
+                */
+
+                //old 2 hand
+                desiredPos = new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + -0.05f, -0.05f + Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0.1f);
+                desiredRot = Quaternion.Euler(0, -70 + Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, 0);
             }
+            //else
+            //{
+            //    if (leftHand.reference != PlayerController.main.GrabbedGun.leftHandPose)
+            //    {
+            //        leftHand.Grab(PlayerController.main.GrabbedGun.leftHandPose, 0.3f);
+            //    }
+            //}
         }
         //directionForce = Vector3.Lerp(directionForce, Vector3.zero, comeBackForce * Time.deltaTime);
         //orientationForce = Quaternion.Lerp(orientationForce, Quaternion.identity, comeBackForce * Time.deltaTime);
-
+        //if (playerPose == PlayerPose.Run)
+        //    leftHand.handTarget.transform.localPosition = Vector3.Lerp(leftHand.handTarget.transform.localPosition, leftHandDesiredPos, comeToForce * Time.deltaTime);
         poseTransform.localPosition = Vector3.Lerp(poseTransform.localPosition, desiredPos, comeToForce * Time.deltaTime);
         poseTransform.localRotation = Quaternion.Lerp( poseTransform.localRotation, desiredRot, comeToForce * Time.deltaTime);
+    }
+    public void SwitchPose(PlayerPose _pose)
+    {
+        playerPose = _pose;
+        ApplyPoseConfiguration(GetPoseConfig(_pose));
+    }
+
+    public PlayerPoseConfig GetPoseConfig(PlayerPose _pose)
+    {
+        return configs[(int)_pose];
+    }
+
+    public void ApplyPoseConfiguration(PlayerPoseConfig _config)
+    {
+        leftHand.hint.localPosition = _config.leftHandHintPosition;
+        rightHand.hint.localPosition = _config.rightHandHintPosition;
     }
 }
 
@@ -173,4 +225,13 @@ public enum PlayerPose
     Idle,
     Walk,
     Run
+}
+[System.Serializable]
+public class PlayerPoseConfig
+{
+    public PlayerPose playerPose = new PlayerPose();
+    public Vector3 leftHandHintPosition;
+    public Vector3 rightHandHintPosition;
+
+    public PlayerPoseConfig() { }
 }

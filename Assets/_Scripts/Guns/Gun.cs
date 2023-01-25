@@ -18,6 +18,8 @@ public class Gun : GrabbableItem
     public GameObject decalFX;
     public Vector3 usualPosition;
     public Vector3 scopePosition;
+    public Vector3 usualRotation;
+    public Vector3 scopeRotation;
     public Transform animatedPart;
 
 
@@ -34,7 +36,10 @@ public class Gun : GrabbableItem
 
         lastTimeShot = Time.time;
         //bullet
-        Ray ray = new Ray(Muzzle.position, Muzzle.forward);
+        var accuracy = PlayerController.main.Accuracy;
+        Ray ray = new Ray(Muzzle.position, Muzzle.forward + Muzzle.up * Random.Range(-accuracy, accuracy) * 0.02f + Muzzle.right * Random.Range(-accuracy, accuracy) * 0.02f);
+
+
         if (Physics.Raycast(ray, out RaycastHit hit, 1000, shootingLayer))
         {
             var fx = Instantiate(decalFX, hit.point, Quaternion.identity);
