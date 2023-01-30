@@ -42,9 +42,12 @@ public class PlayerController : MonoBehaviour
 
     [Header("Grabbing")]
     public GrabbableItem grabbedItem;
-
-
     public List<GrabbableItem> guns = new List<GrabbableItem>();
+
+    [Header("Gun Control")]
+    public GunGrabState gunState = new GunGrabState();
+
+    public static PlayerController main;
 
     public Gun GrabbedGun
     { 
@@ -56,11 +59,30 @@ public class PlayerController : MonoBehaviour
             return null;
         } 
     }
+    public bool IsReloading
+    {
+        get
+        {
+            return PoseAnimator.main.reloading;
+        }
+    }
+    public bool IsSwitching
+    {
+        get 
+        {
+            return PoseAnimator.main.isSwitching;
+        }
+    }
 
-    [Header("Gun Control")]
-    public GunGrabState gunState = new GunGrabState();
+    public PlayerPose CurrentPlayerPose
+    {
+        get
+        {
+            return PoseAnimator.main.playerPose;
+        }
+    }
 
-    public static PlayerController main;
+    
     private void Awake()
     {
         main = this;
@@ -95,22 +117,49 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        Crosshair.main.TurnOn(gunState == GunGrabState.Normal && !isSprinting && !IsSwitching);
         UpdateAccuracy();
+        
         if (Input.GetMouseButton(0))
         {
-            Shoot();
-            isSprinting = false;
+            if (!IsSwitching)
+            {
+                PullTrigger();
+                isSprinting = false;
+            }
         }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            ReleaseTrigger();
+        }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            if (grabbedItem is Gun)
+            {
+                (grabbedItem as Gun).SwitchShootingMode();
+            }
+        }
+
         if (Input.GetMouseButtonDown(1))
         {
-            if (isSprinting)
-                isSprinting = false;
-            ChangeScopeState();
+            if (!IsSwitching)
+            {
+                if (isSprinting)
+                    isSprinting = false;
+
+                ChangeScopeState();
+            }
         }
         if (Input.GetKeyDown(KeyCode.R))
         {
-            if (isSprinting) isSprinting = false;
-            Reload();
+            if (!IsSwitching)
+            {
+                if (isSprinting) 
+                    isSprinting = false;
+                Reload();
+            }
         }
         if (Input.GetKeyDown(KeyCode.T))
         {
@@ -119,22 +168,6 @@ public class PlayerController : MonoBehaviour
             else
                 Time.timeScale = 1f;
         }
-        if (Input.GetKeyDown(KeyCode.LeftShift))
-        {
-            if (!isSprinting && PoseAnimator.main.reloading) return;
-            if (!isSprinting && Input.GetMouseButton(0)) return;
-            if (!isGrounded) return;
-            isSprinting = !isSprinting;
-
-
-            if (isSprinting)
-            {
-                if (gunState == GunGrabState.Scoped)
-                {
-                    ChangeScopeState();
-                }
-            }
-        }
         if (Input.GetKeyDown(KeyCode.Space))
         {
             if (charController.isGrounded)
@@ -142,27 +175,50 @@ public class PlayerController : MonoBehaviour
                 upForce = Vector3.zero;
                 jump = true;
             }
-                
+
         }
 
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            SwitchGun();
+            PoseAnimator.main.SwitchGunAnimation();
         }
+
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            
+            if (isGrounded)
+            {
+                if (!Input.GetMouseButton(0))
+                {
+                    if (!IsReloading)
+                    {
+                        isSprinting = !isSprinting;
+
+
+                        if (isSprinting)
+                        {
+                            if (gunState == GunGrabState.Scoped)
+                            {
+                                ChangeScopeState();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
 
         HandleMovevement();
         HandleMouse();
-
-       // GrabItem(grabbedItem);
     }
     
     public void UpdateAccuracy()
     {
-        if (PoseAnimator.main.playerPose == PlayerPose.Idle)
+        if (CurrentPlayerPose == PlayerPose.Idle)
             desiredAccuracyMultiplier = idleAccuracy;
-        if (PoseAnimator.main.playerPose == PlayerPose.Run)
+        if (CurrentPlayerPose == PlayerPose.Run)
             desiredAccuracyMultiplier = runAccuraccy;
-        if (PoseAnimator.main.playerPose == PlayerPose.Walk)
+        if (CurrentPlayerPose == PlayerPose.Walk)
             desiredAccuracyMultiplier = walkAccuracy;
         if (!isGrounded)
             desiredAccuracyMultiplier *= jumpAccuracy;
@@ -174,12 +230,15 @@ public class PlayerController : MonoBehaviour
         accuracyMultiplier = Mathf.Lerp(accuracyMultiplier, desiredAccuracyMultiplier, 10f * Time.deltaTime);
     }
 
-    void Reload()
+    public void Reload()
     {
+        if(Inventory.main.GetAmmoAmount(GrabbedGun.ammoType) == 0) return;
+
         PoseAnimator.main.Reload(GrabbedGun);
     }
-    void SwitchGun()
+    public void SwitchGun()
     {
+
         var i = grabbedItem == null ? 0 : guns.IndexOf(grabbedItem);
 
         if (i < guns.Count - 1)
@@ -191,12 +250,15 @@ public class PlayerController : MonoBehaviour
             i = 0;
 
 
-        if(grabbedItem != null)
+        if (grabbedItem != null)
             grabbedItem.gameObject.SetActive(false);
 
         GrabItem(guns[i]);
 
+        AmmoUI.main.ShowAmmo(GrabbedGun);
+        ShootingModeUI.main.UpdateShootingMode(GrabbedGun.shootingMode);
         grabbedItem.gameObject.SetActive(true);
+
     }
 
     public void ChangeScopeState()
@@ -219,15 +281,22 @@ public class PlayerController : MonoBehaviour
                 WeaponProceduralAnimator.main.weaponInitOrientation = Quaternion.Euler(GrabbedGun.scopeRotation);
             }
 
-            Crosshair.main.TurnOn(gunState == GunGrabState.Normal);
+            
         }
     }
 
-    void Shoot()
+    void PullTrigger()
     {
         if (grabbedItem is Gun)
         {
             (grabbedItem as Gun).Shoot();
+        }
+    }
+    void ReleaseTrigger()
+    {
+        if (grabbedItem is Gun)
+        {
+            (grabbedItem as Gun).ReleaseTrigger();
         }
     }
 

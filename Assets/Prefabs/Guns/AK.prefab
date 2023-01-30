@@ -249,6 +249,9 @@ MonoBehaviour:
   fireRate: 0.1
   magSize: 30
   curMagSize: 30
+  availableShootingModes: 0000000002000000
+  shootingMode: 2
+  ammoType: 1
   Muzzle: {fileID: 685381409237187383}
   shootingLayer:
     serializedVersion: 2
@@ -265,6 +268,7 @@ MonoBehaviour:
   animatedPart: {fileID: 8132826044991633967}
   magazinePrefab: {fileID: 563314761766971168, guid: 295b56b6906560441b555a8999112c72, type: 3}
   curMagazine: {fileID: 8130143968601985285}
+  canShoot: 1
 --- !u!114 &8535729923660500179
 MonoBehaviour:
   m_ObjectHideFlags: 0

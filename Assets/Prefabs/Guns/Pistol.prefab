@@ -170,6 +170,8 @@ MonoBehaviour:
   fireRate: 0.1
   magSize: 17
   curMagSize: 17
+  availableShootingModes: 00000000
+  shootingMode: 0
   Muzzle: {fileID: 5069665165823746751}
   shootingLayer:
     serializedVersion: 2

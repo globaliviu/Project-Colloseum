@@ -123,12 +123,35 @@ public class PoseAnimator : MonoBehaviour
             
         }
 
+
+        int ammo = Inventory.main.TakeAmmo(gun.ammoType, gun.magSize - gun.curMagSize);
+        gun.curMagSize += ammo;
+        AmmoUI.main.ShowAmmo(gun);
+
+
         leftHand.Grab(gun.leftHandPose, 0.15f);
         yield return new WaitForSeconds(0.15f);
         reloading = false;
         comeToForce = 15f;
     }
+    public bool isSwitching;
+    public void SwitchGunAnimation()
+    {
+        if(!isSwitching)
+            StartCoroutine(ISwitchGun());
+    }
 
+    public IEnumerator ISwitchGun()
+    {
+        isSwitching = true;
+        desiredRot = Quaternion.Euler(45f, 0f, -20f);
+        desiredPos = new Vector3(0, -0.25f, 0);
+        yield return new WaitForSeconds(0.3f);
+        PlayerController.main.SwitchGun();
+        yield return new WaitForSeconds(0.4f);
+        isSwitching = false;
+
+    }
     public IEnumerator IMagFall(GameObject _mag)
     {
         _mag.transform.parent = null;//.SetActive(false);
@@ -151,10 +174,7 @@ public class PoseAnimator : MonoBehaviour
     Vector3 leftHandDesiredPos;
     public void Update()
     {
-
-
-
-        if (!reloading)
+        if (!reloading && !isSwitching)
         {
             var gun = PlayerController.main.GrabbedGun;
 
@@ -174,36 +194,12 @@ public class PoseAnimator : MonoBehaviour
             }
             if (playerPose == PlayerPose.Run)
             {
-                /*
-                if (leftHand.handTarget.parent != leftHandRunRef.transform.parent)
-                {
-                    leftHand.Grab(leftHandRunRef, 0.3f);
-                    leftHandDesiredPos = leftHandRunRef.transform.localPosition;
-                }
-                //new 1 hand
-                leftHand.handTarget.parent = PlayerController.main.playerRig;
-                leftHandDesiredPos = new Vector3(leftHandRunRef.transform.localPosition.x, leftHandRunRef.transform.localPosition.y + Mathf.Sin(Time.time * runFrequency / 2f) * 0.1f + xAir * 10f, leftHandRunRef.transform.localPosition.z);
-
-                desiredPos = new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + 0.15f, -0.05f + Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0.1f);
-                desiredRot = Quaternion.Euler(-70, Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, 0);
-                */
-
-                //old 2 hand
                 desiredPos = gun.runPosOffset + new Vector3(Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti, Mathf.Sin(Time.time * runFrequency) * runYoffset * scopedMulti + xAir * scopedMulti * 3f, 0);
                 desiredRot = Quaternion.Euler(gun.runRotOffset.x, gun.runRotOffset.y + Mathf.Sin(Time.time * runRotFrequency * scopedMulti) * runRotYOffset * scopedMulti, gun.runRotOffset.z);
             }
-            //else
-            //{
-            //    if (leftHand.reference != PlayerController.main.GrabbedGun.leftHandPose)
-            //    {
-            //        leftHand.Grab(PlayerController.main.GrabbedGun.leftHandPose, 0.3f);
-            //    }
-            //}
+            
         }
-        //directionForce = Vector3.Lerp(directionForce, Vector3.zero, comeBackForce * Time.deltaTime);
-        //orientationForce = Quaternion.Lerp(orientationForce, Quaternion.identity, comeBackForce * Time.deltaTime);
-        //if (playerPose == PlayerPose.Run)
-        //    leftHand.handTarget.transform.localPosition = Vector3.Lerp(leftHand.handTarget.transform.localPosition, leftHandDesiredPos, comeToForce * Time.deltaTime);
+        
         poseTransform.localPosition = Vector3.Lerp(poseTransform.localPosition, desiredPos, comeToForce * Time.deltaTime);
         poseTransform.localRotation = Quaternion.Lerp( poseTransform.localRotation, desiredRot, comeToForce * Time.deltaTime);
     }

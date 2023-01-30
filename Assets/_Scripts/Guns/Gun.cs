@@ -8,7 +8,10 @@ public class Gun : GrabbableItem
     public float fireRate;
     public int magSize;
     public int curMagSize;
-    
+
+    public List<ShootingModes> availableShootingModes = new List<ShootingModes>();
+    public ShootingModes shootingMode = new ShootingModes();
+    public AmmoType ammoType;
     public Transform Muzzle;
 
     public LayerMask shootingLayer;
@@ -32,15 +35,43 @@ public class Gun : GrabbableItem
     public GameObject magazinePrefab;
     public GameObject curMagazine;
 
+
+    public bool canShoot = true;
+
+
+    public void ReleaseTrigger()
+    {
+        if(shootingMode == ShootingModes.Single)
+            canShoot = true;
+    }
+
     public void Shoot()
     {
         if (PoseAnimator.main.reloading) return;
-        if (Time.time - lastTimeShot < fireRate - Time.deltaTime) return;
 
+
+        if (curMagSize == 0)
+        {
+            //reload
+            PlayerController.main.Reload();
+            return;
+        }
+
+        if (shootingMode == ShootingModes.Single && !canShoot) return;
+        if (Time.time - lastTimeShot < fireRate - Time.deltaTime) return;
 
         lastTimeShot = Time.time;
         //bullet
+        
+        
+        
         var accuracy = PlayerController.main.Accuracy;
+
+        var dir = Muzzle.forward + Muzzle.up * Random.Range(-accuracy, accuracy) * 0.02f + Muzzle.right * Random.Range(-accuracy, accuracy) * 0.02f;
+
+        BallisticsManager.main.NewProjectile(Muzzle.position, dir, 200f, 0.05f);
+
+        /*
         Ray ray = new Ray(Muzzle.position, Muzzle.forward + Muzzle.up * Random.Range(-accuracy, accuracy) * 0.02f + Muzzle.right * Random.Range(-accuracy, accuracy) * 0.02f);
 
 
@@ -57,10 +88,19 @@ public class Gun : GrabbableItem
         muzzleFx.transform.localEulerAngles = new Vector3(0, 0, Random.Range(0, 360f));
 
         Destroy(muzzleFx, 0.1f);
-
-        //applu recoil
+        */
+        //apply recoil
         recoilController.ApplyRecoil();
         animatedPart.localPosition = new Vector3(0f, 0f, -0.15f);
+
+        curMagSize--;
+        //Inventory.main.ConsumeAmmo(ammoType);
+        AmmoUI.main.ShowAmmo(this);
+
+        if (shootingMode == ShootingModes.Single)
+        {
+            canShoot = false;
+        }
 
     }
 
@@ -82,6 +122,20 @@ public class Gun : GrabbableItem
         Crosshair.main.SetPosition(pos);
     }
 
-    
+    public void SwitchShootingMode()
+    {
+        if (availableShootingModes.Count <= 1) return;
+
+        int curMode = availableShootingModes.IndexOf(shootingMode);
+
+        curMode++;
+
+        if (curMode > availableShootingModes.Count - 1)
+            curMode = 0;
+
+        shootingMode = availableShootingModes[curMode];
+
+        ShootingModeUI.main.UpdateShootingMode(shootingMode);
+    }
 
 }
